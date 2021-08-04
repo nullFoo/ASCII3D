@@ -48,9 +48,9 @@ namespace ConsoleApp1
         {
             { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
             { 1, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
-            { 1, 0, 1, 0, 0, 0, 0, 0, 0, 1 },
+            { 1, 0, 1, 0, 0, 2, 0, 0, 0, 1 },
             { 1, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
-            { 1, 0, 0, 0, 0, 0, 0, 1, 0, 1 },
+            { 1, 0, 0, 2, 0, 0, 0, 1, 0, 1 },
             { 1, 0, 0, 0, 0, 0, 0, 1, 0, 1 },
             { 1, 0, 0, 0, 0, 0, 0, 1, 0, 1 },
             { 1, 0, 1, 1, 0, 0, 0, 0, 0, 1 },
@@ -62,7 +62,9 @@ namespace ConsoleApp1
         static double playerY = 100;
         static double playerRot = 0;
 
-        static string[] chars = { "  ", "::", "OO", "XX", "$$", "##", "░░", "▒▒", "▓▓", "██" };
+        static float playerSpeed = 5;
+
+        static string[] chars = { "  ", "::", "OO", "XX", "SS", "$$", "##", "░░", "▒▒", "▓▓", "██" };
         static ConsoleColor[] colours = { ConsoleColor.Black, ConsoleColor.DarkGray, ConsoleColor.DarkBlue, ConsoleColor.DarkCyan, ConsoleColor.Cyan, ConsoleColor.Gray, ConsoleColor.White,};
 
         static void Main(string[] args)
@@ -74,7 +76,10 @@ namespace ConsoleApp1
                 Console.Clear();
                 for (int x = 0; x < 32; x++)
                     for (int y = 0; y < 32; y++)
-                        map[y, x] = 140;
+                        if (y > 14)
+                            map[y, x] = 0;
+                        else
+                            map[y, x] = 140;
                 Raycast();
 
                 for (int x = 0; x < 32; x++)
@@ -97,7 +102,7 @@ namespace ConsoleApp1
                         }
                         else
                         {
-                            Console.BackgroundColor = ConsoleColor.Black;//EvaluateZ(map[x, y]);
+                            Console.BackgroundColor = ConsoleColor.Black;
                         }
                         if (x >= 28 && y < 20 && y > 12)
                         {
@@ -105,8 +110,15 @@ namespace ConsoleApp1
                             map[x, y] = 140;
                         }
                         int thing = (int)map[x, y];
-                        Console.Write(chars[9 - (int)(thing / 15)]);
-                        //Console.BackgroundColor = colours[(int)(thing / 20)];
+                        if(thing == -1)
+                        {
+                            Console.BackgroundColor = ConsoleColor.Green;
+                            Console.Write("  ");
+                            Console.BackgroundColor = ConsoleColor.Black;
+                        }
+                        else
+                            Console.Write(chars[9 - (int)(thing / 15)]);
+                        //Console.BackgroundColor = colours[(int)(thing / 25)];
                         //Console.Write("  ");
                     }
                     Console.WriteLine("|");
@@ -117,24 +129,36 @@ namespace ConsoleApp1
             }
         }
 
-        static void Raycast()  // IMPORTANT NOTE: This'll be much easier to do if your FOV is equal to the horisontal resolution 
+        static void Raycast()
         {
             for (short Iterator = 0; Iterator < 32; Iterator++) //Going through each degree in you FOV
             {
-                double RayX = playerX; //PlayerX and PlayerY are variables declared elsewhere
+                double RayX = playerX;
                 double RayY = playerY;
                 ushort Distance = 0;
                 do
                 {
-                    RayX += (Math.Cos(Math.PI * (playerRot + Iterator) / 180)); //Direction X is a global variable declared elsewhere
+                    RayX += (Math.Cos(Math.PI * (playerRot + Iterator) / 180));
                     RayY -= (Math.Sin(Math.PI * (playerRot + Iterator) / 180));
                     Distance++;
                 } while (actualMap[(int)RayY / 20, (int)RayX / 20] <= 0);
-                for (int Y = (32 / 2) - (32 / 2) / (Distance / 16); Y < (32 / 2) + (32 / 2) / (Distance / 10); Y++)
+                for (int Y = (32 / 2) - (32 / 2) / Clamp((Distance / 16), 1, 10000); Y < (32 / 2) + (32 / 2) / Clamp((Distance / 10), 1, 10000); Y++)
                 {
-                    map[Y, Iterator] = Distance;
+                    /*if (actualMap[(int)RayY / 20, (int)RayX / 20] == 2 && Iterator == 16)
+                        map[15, Iterator] = -1;
+                    else*/
+                        map[Y, Iterator] = Distance;
                 }
             }
+        }
+
+        static int Clamp(int value, int min, int max)
+        {
+            if (value < min)
+                return min;
+            if (value > max)
+                return max;
+            return value;
         }
 
         static ConsoleColor EvaluateZ(float z)
@@ -156,13 +180,23 @@ namespace ConsoleApp1
 
             if (key == ConsoleKey.W)
             {
-                playerX += (Math.Cos(Math.PI * ((playerRot + 16) / 180)));
-                playerY -= (Math.Sin(Math.PI * ((playerRot + 16) / 180)));
+                playerX += (Math.Cos(Math.PI * ((playerRot + 16) / 180))) * playerSpeed;
+                playerY -= (Math.Sin(Math.PI * ((playerRot + 16) / 180))) * playerSpeed;
+                if(actualMap[(int)playerY / 20, (int)playerX / 20] == 1) // if there's a wall there, undo
+                {
+                    playerX -= (Math.Cos(Math.PI * ((playerRot + 16) / 180))) * playerSpeed;
+                    playerY += (Math.Sin(Math.PI * ((playerRot + 16) / 180))) * playerSpeed;
+                }
             }
             else if (key == ConsoleKey.S)
             {
-                playerX -= (Math.Cos(Math.PI * ((playerRot + 16) / 180)));
-                playerY += (Math.Sin(Math.PI * ((playerRot + 16) / 180)));
+                playerX -= (Math.Cos(Math.PI * ((playerRot + 16) / 180))) * playerSpeed;
+                playerY += (Math.Sin(Math.PI * ((playerRot + 16) / 180))) * playerSpeed;
+                if (actualMap[(int)playerY / 20, (int)playerX / 20] == 1) // if there's a wall there, undo
+                {
+                    playerX += (Math.Cos(Math.PI * ((playerRot + 16) / 180))) * playerSpeed;
+                    playerY -= (Math.Sin(Math.PI * ((playerRot + 16) / 180))) * playerSpeed;
+                }
 
             }
             else if (key == ConsoleKey.D)
